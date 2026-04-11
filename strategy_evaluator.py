@@ -117,3 +117,91 @@ def recommend_formation(opp_formation, min_matches=10):
     grouped = grouped.sort_values("win_rate", ascending=False).head(3)
 
     return grouped.rename(columns={"formation_clean": "formation"}).to_dict(orient="records")
+
+
+# -------------------------------------------------------
+# Opposition Scouting Report — data-driven, no model needed
+# -------------------------------------------------------
+def get_scouting_report(team_name):
+    """
+    Given an opponent team name, returns a full scouting report
+    derived from their historical La Liga matches.
+
+    Returns a dict with overall stats, home/away splits,
+    most used formations, weak points, and last 5 matches.
+    """
+    try:
+        df = pd.read_csv(DATA_PATH_FOR_FORMATIONS)
+    except FileNotFoundError:
+        return None
+
+    team_df = df[df["team"] == team_name].copy()
+
+    if len(team_df) == 0:
+        return {}
+
+    # ── Overall stats ──
+    total     = len(team_df)
+    wins      = (team_df["result"] == "W").sum()
+    draws     = (team_df["result"] == "D").sum()
+    losses    = (team_df["result"] == "L").sum()
+    win_rate  = round(wins / total * 100, 1)
+
+    avg_xg    = round(team_df["xg"].mean(), 2)
+    avg_xga   = round(team_df["xga"].mean(), 2)
+    avg_poss  = round(team_df["poss"].mean(), 1)
+    avg_sh    = round(team_df["sh"].mean(), 1)
+    avg_sot   = round(team_df["sot"].mean(), 1)
+
+    # ── Home vs Away ──
+    home_df   = team_df[team_df["venue"] == "Home"]
+    away_df   = team_df[team_df["venue"] == "Away"]
+    home_wr   = round((home_df["result"] == "W").mean() * 100, 1) if len(home_df) > 0 else 0
+    away_wr   = round((away_df["result"] == "W").mean() * 100, 1) if len(away_df) > 0 else 0
+    home_xga  = round(home_df["xga"].mean(), 2) if len(home_df) > 0 else 0
+    away_xga  = round(away_df["xga"].mean(), 2) if len(away_df) > 0 else 0
+
+    # ── Most used formations (top 3) ──
+    formation_clean = team_df["formation"].str.replace("◆", "", regex=False).str.strip()
+    top_formations  = formation_clean.value_counts().head(3).to_dict()
+
+    # ── Weak points ──
+    weak_points = []
+    if away_xga > avg_xga * 1.2:
+        weak_points.append(f"Defensively vulnerable away — avg xGA {away_xga} vs {avg_xga} overall")
+    if away_wr < home_wr - 15:
+        weak_points.append(f"Significant home/away gap — {home_wr}% home win rate vs {away_wr}% away")
+    if avg_xga > 1.5:
+        weak_points.append(f"High defensive exposure overall — avg xGA {avg_xga}")
+    if avg_sot / avg_sh < 0.35 if avg_sh > 0 else False:
+        weak_points.append(f"Low shot accuracy — only {round(avg_sot/avg_sh*100,1)}% of shots on target")
+    if not weak_points:
+        weak_points.append("No major statistical weaknesses identified — strong all-round team")
+
+    # ── Last 5 matches ──
+    last5 = (
+        team_df.sort_values("date", ascending=False)
+        .head(5)[["date", "opponent", "venue", "result", "formation", "xg", "xga"]]
+        .to_dict(orient="records")
+    )
+
+    return {
+        "team":            team_name,
+        "total_matches":   total,
+        "wins":            int(wins),
+        "draws":           int(draws),
+        "losses":          int(losses),
+        "win_rate":        win_rate,
+        "avg_xg":          avg_xg,
+        "avg_xga":         avg_xga,
+        "avg_poss":        avg_poss,
+        "avg_sh":          avg_sh,
+        "avg_sot":         avg_sot,
+        "home_win_rate":   home_wr,
+        "away_win_rate":   away_wr,
+        "home_xga":        home_xga,
+        "away_xga":        away_xga,
+        "top_formations":  top_formations,
+        "weak_points":     weak_points,
+        "last_5":          last5,
+    }

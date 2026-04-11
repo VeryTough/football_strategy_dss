@@ -7,7 +7,7 @@
 # Make sure you have run train_model.py at least once before this
 
 import streamlit as st
-from strategy_evaluator import evaluate_strategy, recommend_formation
+from strategy_evaluator import evaluate_strategy, recommend_formation, get_scouting_report
 import random
 
 # -------------------------------------------------------
@@ -361,6 +361,160 @@ if formation_btn:
                 📌 Only formations with 10+ matches against this opponent are shown for statistical reliability.
             </p>
         """, unsafe_allow_html=True)
+
+st.markdown("---")
+
+# -------------------------------------------------------
+# Opposition Scouting Report — optional
+# -------------------------------------------------------
+ALL_TEAMS = [
+    "Alaves", "Almeria", "Athletic Club", "Atletico Madrid", "Barcelona",
+    "Cadiz", "Celta Vigo", "Eibar", "Elche", "Espanyol", "Getafe",
+    "Girona", "Granada", "Huesca", "Las Palmas", "Leganes", "Levante",
+    "Mallorca", "Osasuna", "Oviedo", "Rayo Vallecano", "Real Betis",
+    "Real Madrid", "Real Sociedad", "Sevilla", "Valencia", "Valladolid", "Villarreal"
+]
+
+st.markdown("""
+    <div style='background: rgba(0, 212, 255, 0.05); border-left: 4px solid #00d4ff; padding: 20px; border-radius: 8px; margin-bottom: 30px;'>
+        <h3 style='color: #00ffff; margin: 0 0 10px 0;'>🔭 OPPOSITION SCOUTING REPORT <span style='color:#555; font-size:0.6em; font-weight:400;'>— optional</span></h3>
+        <p style='color: #a0a0ff; margin: 0;'>Select an opponent team to generate a full scouting report from their historical La Liga data. Leave blank to skip.</p>
+    </div>
+""", unsafe_allow_html=True)
+
+scout_col1, scout_col2 = st.columns([2, 1], gap="large")
+
+with scout_col1:
+    selected_team = st.selectbox(
+        "🏟️ Select Opponent Team",
+        options=["— Select a team (optional) —"] + sorted(ALL_TEAMS),
+        index=0,
+        help="Leave as default to skip the scouting report"
+    )
+
+with scout_col2:
+    st.markdown("<div style='padding-top: 28px;'>", unsafe_allow_html=True)
+    scout_btn = st.button("🔭 GENERATE SCOUTING REPORT", use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+if scout_btn:
+    if selected_team == "— Select a team (optional) —":
+        st.markdown("""
+            <div style='background: rgba(255,150,0,0.1); border-left: 4px solid #ffa500; padding: 12px; border-radius: 6px; color: #ffb366;'>
+                ⚠️ Please select a team from the dropdown to generate a scouting report.
+            </div>
+        """, unsafe_allow_html=True)
+    else:
+        with st.spinner(f"⏳ Analysing {selected_team}'s historical data..."):
+            report = get_scouting_report(selected_team)
+
+        if report is None:
+            st.error("❌ Could not load match data. Make sure matches_laliga.csv is in the data/ folder.")
+        elif not report:
+            st.warning(f"⚠️ No data found for {selected_team}.")
+        else:
+            st.markdown(f"""
+                <div style='text-align:center; margin: 20px 0 25px 0;'>
+                    <h2 style='color:#00ffff; text-shadow: 0 0 12px rgba(0,212,255,0.5);'>
+                        🔭 {report['team']} — Scouting Report
+                    </h2>
+                    <p style='color:#a0a0ff;'>Based on {report['total_matches']} historical La Liga matches</p>
+                </div>
+            """, unsafe_allow_html=True)
+
+            # ── Overall W/D/L ──
+            st.markdown("<p style='color:#00ffff; font-weight:700; font-size:1.05em; margin-bottom:12px;'>📊 OVERALL RECORD</p>", unsafe_allow_html=True)
+            s1, s2, s3, s4 = st.columns(4, gap="medium")
+            with s1:
+                st.metric("✅ Win Rate", f"{report['win_rate']}%")
+            with s2:
+                st.metric("🏆 Wins", report['wins'])
+            with s3:
+                st.metric("🟡 Draws", report['draws'])
+            with s4:
+                st.metric("❌ Losses", report['losses'])
+
+            st.markdown("---")
+
+            # ── Attacking & Defensive Stats ──
+            st.markdown("<p style='color:#00ffff; font-weight:700; font-size:1.05em; margin-bottom:12px;'>⚽ AVERAGE MATCH STATS</p>", unsafe_allow_html=True)
+            a1, a2, a3, a4, a5 = st.columns(5, gap="medium")
+            with a1:
+                st.metric("xG (Attack)", report['avg_xg'])
+            with a2:
+                st.metric("xGA (Defence)", report['avg_xga'])
+            with a3:
+                st.metric("Possession %", f"{report['avg_poss']}%")
+            with a4:
+                st.metric("Shots", report['avg_sh'])
+            with a5:
+                st.metric("Shots on Target", report['avg_sot'])
+
+            st.markdown("---")
+
+            # ── Home vs Away ──
+            st.markdown("<p style='color:#00ffff; font-weight:700; font-size:1.05em; margin-bottom:12px;'>🏟️ HOME vs AWAY</p>", unsafe_allow_html=True)
+            h1, h2, h3, h4 = st.columns(4, gap="medium")
+            with h1:
+                st.metric("🏠 Home Win Rate", f"{report['home_win_rate']}%")
+            with h2:
+                st.metric("✈️ Away Win Rate", f"{report['away_win_rate']}%")
+            with h3:
+                st.metric("🏠 Home xGA", report['home_xga'])
+            with h4:
+                st.metric("✈️ Away xGA", report['away_xga'])
+
+            st.markdown("---")
+
+            # ── Top Formations & Weak Points side by side ──
+            fc, wc = st.columns(2, gap="large")
+
+            with fc:
+                st.markdown("<p style='color:#00ffff; font-weight:700; font-size:1.05em; margin-bottom:12px;'>🧩 MOST USED FORMATIONS</p>", unsafe_allow_html=True)
+                for i, (formation, count) in enumerate(report['top_formations'].items()):
+                    medals = ["🥇", "🥈", "🥉"]
+                    st.markdown(f"""
+                        <div style='background: rgba(0,212,255,0.07); border: 1px solid #00d4ff;
+                                    border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;
+                                    display: flex; justify-content: space-between;'>
+                            <span style='color:#00ffff; font-weight:700;'>{medals[i]} {formation}</span>
+                            <span style='color:#a0a0ff;'>{count} matches</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+            with wc:
+                st.markdown("<p style='color:#00ffff; font-weight:700; font-size:1.05em; margin-bottom:12px;'>⚠️ IDENTIFIED WEAK POINTS</p>", unsafe_allow_html=True)
+                for point in report['weak_points']:
+                    st.markdown(f"""
+                        <div style='background: rgba(255,80,80,0.07); border-left: 3px solid #ff4444;
+                                    border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; color: #ffaaaa;'>
+                            ⚡ {point}
+                        </div>
+                    """, unsafe_allow_html=True)
+
+            st.markdown("---")
+
+            # ── Last 5 Matches ──
+            st.markdown("<p style='color:#00ffff; font-weight:700; font-size:1.05em; margin-bottom:12px;'>📅 LAST 5 MATCHES</p>", unsafe_allow_html=True)
+
+            result_colors = {"W": "#00ff99", "D": "#ffcc00", "L": "#ff4444"}
+            result_labels = {"W": "WIN", "D": "DRAW", "L": "LOSS"}
+
+            for match in report['last_5']:
+                rc = result_colors.get(match['result'], '#aaa')
+                rl = result_labels.get(match['result'], match['result'])
+                st.markdown(f"""
+                    <div style='background: rgba(0,212,255,0.05); border: 1px solid #1a3a5a;
+                                border-radius: 8px; padding: 12px 18px; margin-bottom: 8px;
+                                display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;'>
+                        <span style='color:#888; font-size:0.85em; min-width:90px;'>{match['date']}</span>
+                        <span style='color:#e0e0e0; font-weight:600; flex:1;'>vs {match['opponent']}</span>
+                        <span style='color:#a0a0ff; font-size:0.85em;'>{match['venue']}</span>
+                        <span style='color:#b0b0ff; font-size:0.85em;'>{match['formation']}</span>
+                        <span style='color:#888; font-size:0.85em;'>xG {match['xg']} | xGA {match['xga']}</span>
+                        <span style='color:{rc}; font-weight:800; font-size:0.9em; min-width:50px; text-align:right;'>{rl}</span>
+                    </div>
+                """, unsafe_allow_html=True)
 
 st.markdown("---")
 
