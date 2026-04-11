@@ -7,7 +7,7 @@
 # Make sure you have run train_model.py at least once before this
 
 import streamlit as st
-from strategy_evaluator import evaluate_strategy
+from strategy_evaluator import evaluate_strategy, recommend_formation
 import random
 
 # -------------------------------------------------------
@@ -293,6 +293,78 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 # -------------------------------------------------------
+# Formation Recommendation Section
+# -------------------------------------------------------
+st.markdown("""
+    <div style='background: rgba(0, 212, 255, 0.05); border-left: 4px solid #00d4ff; padding: 20px; border-radius: 8px; margin-bottom: 30px;'>
+        <h3 style='color: #00ffff; margin: 0 0 10px 0;'>🧩 FORMATION RECOMMENDER</h3>
+        <p style='color: #a0a0ff; margin: 0;'>Select the opponent's formation and we'll recommend the best counters based on historical La Liga results.</p>
+    </div>
+""", unsafe_allow_html=True)
+
+ALL_OPP_FORMATIONS = [
+    "3-4-3", "3-5-2", "4-2-3-1", "4-3-3", "4-4-2",
+    "4-4-1-1", "4-5-1", "4-3-1-2", "4-3-2-1", "4-1-4-1",
+    "4-1-3-2", "4-2-2-2", "5-3-2", "5-4-1",
+    "3-4-1-2", "3-2-4-1", "3-1-4-2", "3-3-3-1",
+    "4-1-2-1-2", "4-2-4-0", "3-5-1-1"
+]
+
+form_col1, form_col2 = st.columns([2, 1], gap="large")
+
+with form_col1:
+    opp_formation_select = st.selectbox(
+        "🔍 Opponent's Formation",
+        options=sorted(ALL_OPP_FORMATIONS),
+        index=sorted(ALL_OPP_FORMATIONS).index("4-4-2"),
+        help="Select the formation the opposing team is likely to play"
+    )
+
+with form_col2:
+    st.markdown("<div style='padding-top: 28px;'>", unsafe_allow_html=True)
+    formation_btn = st.button("⚡ GET RECOMMENDATION", use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+if formation_btn:
+    recs = recommend_formation(opp_formation_select)
+
+    if recs is None:
+        st.error("❌ Could not load match data. Make sure matches_laliga.csv is in the project folder.")
+    elif len(recs) == 0:
+        st.warning(f"⚠️ Not enough historical data to make a reliable recommendation against {opp_formation_select}.")
+    else:
+        st.markdown(f"""
+            <p style='color: #00ffff; font-weight: 700; margin: 20px 0 12px 0; font-size: 1.05em;'>
+                🏆 Best formations against <span style='color:#fff;'>{opp_formation_select}</span> — based on La Liga history
+            </p>
+        """, unsafe_allow_html=True)
+
+        medals = ["🥇", "🥈", "🥉"]
+        rec_cols = st.columns(len(recs), gap="medium")
+
+        for i, (rec, col) in enumerate(zip(recs, rec_cols)):
+            with col:
+                st.markdown(f"""
+                    <div style='background: rgba(0, 212, 255, 0.08); border: 2px solid #00d4ff;
+                                border-radius: 12px; padding: 20px; text-align: center;
+                                box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);'>
+                        <div style='font-size: 2em; margin-bottom: 6px;'>{medals[i]}</div>
+                        <div style='color: #00ffff; font-size: 1.5em; font-weight: 900;'>{rec['formation']}</div>
+                        <div style='color: #00ff99; font-size: 1.8em; font-weight: 800; margin: 8px 0;'>{rec['win_rate']}%</div>
+                        <div style='color: #a0a0ff; font-size: 0.85em;'>win rate</div>
+                        <div style='color: #888; font-size: 0.8em; margin-top: 6px;'>{rec['wins']}W from {rec['total']} matches</div>
+                    </div>
+                """, unsafe_allow_html=True)
+
+        st.markdown("""
+            <p style='color: #888; font-size: 0.82em; margin-top: 12px;'>
+                📌 Only formations with 10+ matches against this opponent are shown for statistical reliability.
+            </p>
+        """, unsafe_allow_html=True)
+
+st.markdown("---")
+
+# -------------------------------------------------------
 # Input Section — Modern Design
 # -------------------------------------------------------
 st.markdown("""
@@ -505,44 +577,6 @@ if evaluate_button:
         }).set_index("Outcome")
 
         st.bar_chart(chart_data, use_container_width=True)
-
-        # -------------------------------------------------------
-        # Historical Comparison Table
-        # -------------------------------------------------------
-        st.markdown("---")
-        st.markdown("""
-            <p style='color: #00ffff; font-weight: 700; margin: 20px 0 15px 0; font-size: 1.1em;'>🗂️ HISTORICAL COMPARISON TABLE</p>
-            <p style='color: #a0a0ff; margin-bottom: 15px;'>How your strategy compares against typical patterns in historical La Liga data</p>
-        """, unsafe_allow_html=True)
-
-        hist_data = {
-            "Metric": ["Possession (%)", "Total Shots", "Shots on Target", "xG", "xGA", "Free Kicks"],
-            "Your Strategy": [poss, sh, sot, xg, xga, fk],
-            "Avg — WIN (La Liga)":  [57.2, 14.1, 5.8, 1.82, 0.97, 10.3],
-            "Avg — DRAW (La Liga)": [50.1, 11.3, 4.2, 1.21, 1.19, 11.1],
-            "Avg — LOSS (La Liga)": [42.8,  8.9, 3.1, 0.89, 2.14, 12.4],
-        }
-        hist_df = pd.DataFrame(hist_data)
-
-        st.dataframe(
-            hist_df.style.set_properties(**{
-                'background-color': 'rgba(0,0,0,0)',
-                'color': '#e0e0e0',
-                'border-color': '#00d4ff'
-            }).highlight_between(
-                subset=["Your Strategy"],
-                color="rgba(0, 212, 255, 0.15)"
-            ),
-            use_container_width=True,
-            hide_index=True
-        )
-
-        st.markdown("""
-            <p style='color: #888; font-size: 0.85em; margin-top: 8px;'>
-                📌 Reference averages computed from 4,700+ La Liga matches (2019–2025). 
-                Comparing your inputs against winning/drawing/losing team benchmarks helps identify strategic gaps.
-            </p>
-        """, unsafe_allow_html=True)
 
         # -------------------------------------------------------
         # Random Football Fact in Results

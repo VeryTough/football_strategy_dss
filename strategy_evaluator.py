@@ -5,6 +5,7 @@
 
 import pickle
 import numpy as np
+import pandas as pd
 from config import (
     MODEL_PATH, RESULT_LABELS,
     get_strategy_rating, get_risk_level, get_explanation
@@ -67,3 +68,52 @@ def evaluate_strategy(poss, sh, sot, xg, xga, fk, venue):
         "risk_level":       risk,
         "explanation":      explanation
     }
+
+
+# -------------------------------------------------------
+# Formation Recommendation — data-driven, no model needed
+# -------------------------------------------------------
+DATA_PATH_FOR_FORMATIONS = "data/matches_laliga.csv"
+
+def recommend_formation(opp_formation, min_matches=10):
+    """
+    Given the opponent's formation, looks at historical La Liga data
+    and returns the top 3 formations that won most often against it.
+
+    Parameters:
+        opp_formation : str  — e.g. "4-4-2"
+        min_matches   : int  — minimum matches needed to include a formation
+                               (avoids small-sample flukes like 1W/1 match = 100%)
+
+    Returns a list of dicts: [{ formation, win_rate, wins, total }, ...]
+    """
+    try:
+        df = pd.read_csv(DATA_PATH_FOR_FORMATIONS)
+    except FileNotFoundError:
+        return None  # caller will show a friendly error
+
+    # Clean the diamond variant symbol from formations (e.g. "4-3-3◆" → "4-3-3")
+    df["formation_clean"] = df["formation"].str.replace("◆", "", regex=False).str.strip()
+
+    # Filter to only matches where opponent used this formation
+    subset = df[df["opp formation"] == opp_formation].copy()
+
+    if len(subset) == 0:
+        return []
+
+    # Group by your formation and calculate win rate
+    grouped = subset.groupby("formation_clean").agg(
+        total=("result", "count"),
+        wins=("result", lambda x: (x == "W").sum())
+    ).reset_index()
+
+    # Drop formations with too few matches — unreliable sample
+    grouped = grouped[grouped["total"] >= min_matches]
+
+    if grouped.empty:
+        return []
+
+    grouped["win_rate"] = (grouped["wins"] / grouped["total"] * 100).round(1)
+    grouped = grouped.sort_values("win_rate", ascending=False).head(3)
+
+    return grouped.rename(columns={"formation_clean": "formation"}).to_dict(orient="records")
