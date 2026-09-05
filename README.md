@@ -1,39 +1,51 @@
-##Football Strategy Decision Support System
+# ⚽ Football Strategy Decision Support System
 
-**Course:** Artificial Intelligence & Machine Learning  
-**Project Type:** Internal Assessment  
-**Group Members:** Avik Raj,Vivek Mathur,Prantar Mazumder,Vatsa Jamar
+**A machine-learning-based DSS that evaluates football match strategies using historical La Liga data**
 
----
+[![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-RandomForest-orange.svg)](https://scikit-learn.org/)
+[![Streamlit](https://img.shields.io/badge/UI-Streamlit-ff4b4b.svg)](https://streamlit.io/)
 
-## Overview
+**Course:** Artificial Intelligence & Machine Learning · **Type:** Internal Assessment
+**Team:** Avik Raj · Vivek Mathur · Prantar Mazumder · Vatsa Jamar
 
-This project is a machine learning-based Decision Support System (DSS) that evaluates football match strategies using historical La Liga data. A coach inputs planned match statistics — such as possession target, shots, and expected goals — and the system returns a probability-based outcome prediction along with a strategy rating.
-
-The system does not claim to understand football tactics. It identifies statistical patterns from 4,700 historical La Liga matches and compares a proposed strategy against those patterns. All final decisions remain with the coaching staff.
-
-> *"Pattern-based strategy evaluation using historical performance data."*
+> *Pattern-based strategy evaluation using historical performance data — not a replacement for coaching judgment.*
 
 ---
 
-## Problem Statement
+## Table of Contents
 
-Football coaching decisions are often made based on intuition and experience. This tool supplements that process by providing data-driven insights — showing how similar strategies have historically performed in La Liga. It is designed to support, not replace, human judgment.
+- [What It Does](#what-it-does)
+- [Dataset](#dataset)
+- [Architecture](#architecture)
+- [Setup](#setup)
+- [Usage](#usage)
+- [Output Metrics](#output-metrics)
+- [Model Details](#model-details)
+- [SDG Alignment](#sdg-alignment)
+- [Limitations](#limitations)
+- [Future Extensions](#future-extensions)
+- [Disclaimer](#disclaimer)
 
 ---
+
+## What It Does
+
+Coaching decisions are often built on intuition and experience. This tool supplements that process with data: a coach inputs a planned strategy — possession target, shots, expected goals — and the system returns a **win/draw/loss probability**, a **strategy rating**, and a **defensive risk level**, based on patterns learned from 4,700 historical La Liga matches.
+
+It does **not** claim to understand football tactics. It identifies statistical patterns and compares a proposed strategy against them. All final decisions remain with the coaching staff.
 
 ## Dataset
 
 | Property | Details |
 |---|---|
 | Name | LaLiga Matches Dataset (2019–2025) |
-| Source | FBref via Kaggle |
-| Link | https://www.kaggle.com/datasets/marcelbiezunski/laliga-matches-dataset-2019-2025-fbref |
+| Source | [FBref via Kaggle](https://www.kaggle.com/datasets/marcelbiezunski/laliga-matches-dataset-2019-2025-fbref) |
 | Rows | 4,700 matches |
 | Teams | 28 La Liga clubs |
 | Seasons | 2019 – 2025 |
 
-**Features used for training:**
+**Features used:**
 
 | Feature | Description |
 |---|---|
@@ -45,118 +57,77 @@ Football coaching decisions are often made based on intuition and experience. Th
 | `fk` | Free kicks / fouls conceded |
 | `venue_encoded` | Home (1) or Away (0) |
 
-**Target variable:** Match result — Win (2), Draw (1), Loss (0)
+**Target:** Match result — Win (2) / Draw (1) / Loss (0)
 
----
-
-## System Architecture
+## Architecture
 
 ```
 Historical La Liga Data (CSV)
         │
         ▼
-  Data Preprocessing
-  (encoding, cleaning)
+  Data Preprocessing  (encoding, cleaning)
         │
         ▼
-  RandomForestClassifier
-  (scikit-learn, 100 trees)
+  RandomForestClassifier  (scikit-learn, 100 trees)
         │
         ▼
-   Saved Model (model.pkl)
+  Saved Model  (model.pkl)
         │
         ▼
-  Coach Inputs Strategy
-  (Streamlit sliders)
+  Coach Inputs Strategy  (Streamlit sliders)
         │
         ▼
-  Strategy Evaluator
-  (loads model, builds feature vector)
+  Strategy Evaluator  (loads model, builds feature vector)
         │
         ▼
-  Output Metrics
-  (Win/Draw/Loss %, Rating, Risk, Explanation)
+  Output Metrics  (Win/Draw/Loss %, Rating, Risk, Explanation)
 ```
 
----
-
-## Project Structure
+**Project structure:**
 
 ```
 football_strategy_dss/
-│
 ├── data/
 │   └── matches_laliga.csv       # La Liga match dataset (2019–2025)
-│
-├── config.py                    # Central settings, thresholds, helper functions
+├── config.py                    # Central settings, thresholds, helpers
 ├── train_model.py               # Loads data, trains model, saves model.pkl
 ├── strategy_evaluator.py        # Loads model, evaluates coach input
 ├── app.py                       # Streamlit web interface
 ├── model.pkl                    # Trained model (generated by train_model.py)
-├── requirements.txt             # Python dependencies
-└── README.md                    # This file
+├── requirements.txt
+└── README.md
 ```
 
----
+## Setup
 
-## Tech Stack
-
-- **Language:** Python 3.11
-- **ML Library:** scikit-learn (RandomForestClassifier)
-- **Data Processing:** pandas, numpy
-- **Web Interface:** Streamlit
-- **Model Persistence:** pickle
-- **Version Control:** Git / GitHub
-
----
-
-## Setup Instructions
-
-### 1. Clone the repository
 ```bash
+# 1. Clone
 git clone https://github.com/VeryTough/football_strategy_dss.git
 cd football_strategy_dss
-```
 
-### 2. Create and activate a virtual environment
-```bash
+# 2. Virtual environment
 python -m venv venv
+venv\Scripts\activate        # Windows
+source venv/bin/activate     # Mac / Linux
 
-# Windows
-venv\Scripts\activate
-
-# Mac / Linux
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-```bash
+# 3. Install dependencies
 pip install -r requirements.txt
+
+# 4. Add the dataset
+# Place matches_laliga.csv inside data/
 ```
 
-### 4. Add the dataset
-Place `matches_laliga.csv` inside the `data/` folder:
-```
-data/matches_laliga.csv
-```
+## Usage
 
----
-
-## How to Run
-
-### Step 1 — Train the model (run once)
 ```bash
+# Step 1 — Train the model (run once)
 python train_model.py
-```
-This will print accuracy scores and save `model.pkl` to the project folder.
+# Prints accuracy scores, saves model.pkl
 
-### Step 2 — Launch the app
-```bash
+# Step 2 — Launch the app
 streamlit run app.py
+# Opens at http://localhost:8501
 ```
-The app will open automatically in your browser at `http://localhost:8501`
-
----
 
 ## Output Metrics
 
@@ -167,53 +138,40 @@ The app will open automatically in your browser at `http://localhost:8501`
 | Loss Probability % | Likelihood of a loss |
 | Strategy Rating | Score out of 10 based on win probability |
 | Defensive Risk Level | Low / Medium / High based on xGA |
-| Explanation | Plain English summary of the evaluation |
+| Explanation | Plain-English summary of the evaluation |
 
----
-
-## Machine Learning Details
+## Model Details
 
 | Property | Value |
 |---|---|
 | Algorithm | Random Forest Classifier |
 | Number of trees | 100 |
 | Max depth | 10 |
-| Train/Test split | 80% / 20% |
+| Train/test split | 80% / 20% |
 | Class balancing | Enabled (balanced class weights) |
-| Random state | 42 (for reproducibility) |
+| Random state | 42 (reproducibility) |
 
-The model was chosen for its robustness with tabular data, resistance to overfitting, and interpretability through feature importance scores — all relevant for academic evaluation.
-
----
+Random Forest was chosen for its robustness with tabular data, resistance to overfitting, and interpretability via feature importance — all useful for academic evaluation.
 
 ## SDG Alignment
 
-**Primary — SDG 3: Good Health and Well-Being**  
-The system evaluates high-intensity strategies using historical data, helping identify play patterns associated with high foul rates and defensive overexposure. This supports sustainable performance planning and can contribute to reducing player injury risk from unnecessarily aggressive strategies.
-
-**Secondary — SDG 4: Quality Education**  
-The tool functions as an educational decision-support system. It helps coaching students and trainees understand how historical data influences match outcomes, promoting data literacy in sports education.
-
----
+- **SDG 3 — Good Health and Well-Being (primary):** Evaluating high-intensity strategies against historical data helps flag play patterns linked to high foul rates and defensive overexposure, supporting sustainable performance planning and reduced injury risk from unnecessarily aggressive tactics.
+- **SDG 4 — Quality Education (secondary):** Functions as an educational DSS, helping coaching students understand how historical data shapes match outcomes and building data literacy in sports education.
 
 ## Limitations
 
-- The model is trained on team-level match statistics, not player-level or event-level data
-- The dataset covers La Liga only — patterns may differ across other leagues
-- A coach's actual tactical decisions involve many factors not captured in these statistics
-- This is a prototype — it is not intended for professional deployment
-
----
+- Trained on team-level stats, not player-level or event-level data
+- Covers La Liga only — patterns may not transfer to other leagues
+- Doesn't capture the many non-statistical factors behind real tactical decisions
+- Prototype only, not intended for professional deployment
 
 ## Future Extensions
 
-- **Natural language input** — Allow coaches to type strategy in plain English, mapped to numeric features using an NLP layer (e.g. Ollama with Llama 3)
-- **Team-specific filtering** — Train separate models per team for more personalised evaluation
-- **Opposition analysis** — Factor in opponent strength as an additional feature
-- **Streamlit Cloud deployment** — Host the app publicly for remote access during demonstrations
-
----
+- **Natural language input** — plain-English strategy input mapped to features via an NLP layer (e.g. Ollama with Llama 3)
+- **Team-specific models** — separate models per team for personalized evaluation
+- **Opposition analysis** — factor in opponent strength as a feature
+- **Streamlit Cloud deployment** — public hosting for remote demos
 
 ## Disclaimer
 
-This tool is a decision support aid only. It identifies statistical patterns from historical data and does not understand football tactics or strategy in the way a human coach does. It should never be used as the sole basis for any coaching decision.
+This tool is a decision support aid only. It identifies statistical patterns from historical data and does not understand football tactics the way a human coach does. It should never be used as the sole basis for any coaching decision.
